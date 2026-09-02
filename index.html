@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JalDrishti - "Ghost Crop" Residue & Microplastic Tracer for Canal Systems</title>
+  <meta name="description" content="Low-cost autonomous JalDrishti Rover, multi-spectral optical ML classification, and satellite remote sensing tracer for canal microplastics and stubble burn ash.">
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- CSS Dependencies -->
+  <link rel="stylesheet" href="css/main.css?v=20260902_v10">
+
+  <!-- Leaflet CSS for Maps -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <!-- JavaScript Libraries -->
+  <!-- Three.js for 3D Animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Chart.js for Spectral Simulator -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Leaflet JS for Maps -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- Dynamic Ambient Light Glow Background -->
+  <div class="bg-glow"></div>
+
+  <!-- Header / Navigation Bar -->
+  <nav class="navbar">
+    <a href="#" class="brand">
+      <div class="brand-icon">
+        <i data-lucide="waves"></i>
+      </div>
+      <span>JalDrishti</span>
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="#overview" class="nav-link">Overview</a></li>
+      <li><a href="#canal-truth" class="nav-link">Canal Truth</a></li>
+      <li><a href="#vessel-3d" class="nav-link">JalDrishti Rover</a></li>
+      <li><a href="#simulator" class="nav-link">Spectral AI</a></li>
+      <li><a href="#gis-map" class="nav-link">Canal GIS Map</a></li>
+      <li><a href="#jal-shakti" class="nav-link">Open Data</a></li>
+      <li><a href="#calculator" class="nav-link">Impact Calculator</a></li>
+    </ul>
+  </nav>
+
+  <!-- Hero Section with Full-Width Widescreen Autonomous Rover Stage -->
+  <header id="overview" class="hero">
+    <!-- Top Full-Width Header Banner -->
+    <div class="hero-header-banner">
+      <div class="badge-pill">
+        <i data-lucide="shield-check"></i> Smart India Hackathon (SIH) Solution
+      </div>
+
+      <h1>"Ghost Crop" Residue & Microplastic Tracer for <span class="text-gradient-cyan">Canal Systems</span></h1>
+
+      <p>
+        Standard water sensors measure basic pH and TDS, completely missing invisible degraded <strong>plastic mulch film</strong>, <strong>stubble burn ash</strong>, and toxic pesticide packaging runoff. 
+        <strong>JalDrishti</strong> combines the autonomous <strong>JalDrishti Rover</strong> with multi-spectral optical ML sensing and satellite remote sensing to protect canal water and pinpoint upstream contamination origins.
+      </p>
+
+      <div class="hero-actions">
+        <a href="#canal-truth" class="btn-primary">
+          <i data-lucide="eye"></i> Explore Canal Truth & Insights
+        </a>
+        <a href="#simulator" class="btn-secondary">
+          <i data-lucide="bar-chart-2"></i> Launch Spectral AI Simulator
+        </a>
+      </div>
+
+      <!-- Live System Status Ticker -->
+      <div class="glass-card" style="padding: 0.75rem 1.4rem; display: inline-flex; align-items: center; gap: 0.75rem; border-color: rgba(16, 185, 129, 0.3); max-width: 820px;">
+        <span style="width: 10px; height: 10px; background: var(--accent-green); border-radius: 50%; display: inline-block; box-shadow: 0 0 10px var(--accent-green); flex-shrink: 0;"></span>
+        <span id="live-system-ticker" style="font-size: 0.9rem; color: var(--text-primary); font-weight: 700;">SYSTEM STATUS: 18 Autonomous JalDrishti Rovers Online • Sentinel-2 Synchronized</span>
+      </div>
+    </div>
+
+    <!-- FULL-WIDTH WIDESCREEN JALDRISHTI ROVER STAGE & 7-ELEMENT SPECTROMETRY GRID -->
+    <div class="hero-full-stage">
+        <div class="sim-showcase-box" id="roverSimBox">
+          <!-- Real-Time Hydrodynamic Navigation & 180° Optical Scanning Canvas -->
+          <canvas id="roverSimCanvas"></canvas>
+
+          <!-- Live Dynamic Telemetry HUD Bar -->
+          <div class="canvas-hud-bar">
+            <div class="hud-pill" style="color: var(--accent-cyan);">
+              <i data-lucide="navigation" style="width: 14px;"></i> SPEED: <span id="hud-rover-speed">0.5 kts</span>
+            </div>
+            <div class="hud-pill" style="color: var(--accent-green);">
+              <i data-lucide="aperture" style="width: 14px;"></i> SCAN ARC: 180° Optical Fan
+            </div>
+            <div class="hud-pill" style="color: var(--accent-danger);">
+              <i data-lucide="layers" style="width: 14px;"></i> DETECTED: <span id="hud-detected-count">842</span>
+            </div>
+          </div>
+
+          <!-- Helper Guidance Overlay -->
+          <div style="position: absolute; bottom: 12px; right: 14px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); padding: 0.4rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.2); color: #e0f2fe; font-size: 0.78rem; font-weight: 700; pointer-events: none;">
+            <i data-lucide="mouse-pointer" style="width: 13px; vertical-align: middle; color: var(--accent-green);"></i> Move mouse to point area • Rover takes U-Turn to target
+          </div>
+        </div>
+
+        <!-- Navigation Movement Mode Controls -->
+        <div class="vessel-mode-controls">
+          <button class="vessel-mode-btn active" data-mode="straight" onclick="window.setRoverNavSimulationMode('straight')">
+            <i data-lucide="move-right" style="width: 14px;"></i> Straight Canal Cruise
+          </button>
+          <button class="vessel-mode-btn" data-mode="uturn" onclick="window.setRoverNavSimulationMode('uturn')">
+            <i data-lucide="rotate-ccw" style="width: 14px;"></i> Execute 180° U-Turn
+          </button>
+        </div>
+
+        <!-- REAL-TIME PARTICLE SPECTROMETRY BREAKDOWN GRID WITH LIVE ELEMENT COUNTERS -->
+        <div class="particle-spectrometry-container">
+          <div class="particle-spectrometry-header">
+            <div>
+              <div style="font-size: 0.85rem; font-weight: 800; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.06em; display: flex; align-items: center; gap: 0.5rem;">
+                <i data-lucide="microscope" style="width: 16px; color: var(--accent-cyan);"></i> Real-Time Canal Water Chemical Spectrometry Grid
+              </div>
+              <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.2rem;">Live counters increment dynamically as the JalDrishti Rover sweeps across each element in real-time.</p>
+            </div>
+            <div style="font-size: 0.78rem; font-weight: 700; color: var(--accent-green); background: var(--accent-green-subtle); padding: 0.35rem 0.8rem; border-radius: var(--radius-full); border: 1px solid rgba(16, 185, 129, 0.3);">
+              <i data-lucide="activity" style="width: 12px; vertical-align: middle;"></i> 7 Optical Bands Active
+            </div>
+          </div>
+
+          <div class="particle-spectrometry-grid">
+            
+            <!-- 1. LDPE Mulch Film -->
+            <div class="particle-chem-card" id="card-ldpe_mulch">
+              <div class="particle-card-top">
+                <div class="particle-icon-title">
+                  <div class="particle-icon-badge" style="background: #ecfeff; color: #0891b2; border: 1px solid #a5f3fc;">
+                    <i data-lucide="layers" style="width: 18px;"></i>
+                  </div>
+                  <div>
+                    <div class="particle-name">LDPE Mulch Film Shreds</div>
+                    <div class="particle-spec-tag">Low-Density Polyethylene • 470nm</div>
+                  </div>
+                </div>
+                <span style="font-size: 0.7rem; font-weight: 800; background: #fee2e2; color: #b91c1c; padding: 0.2rem 0.55rem; border-radius: var(--radius-full);">HIGH RISK</span>
+              </div>
+              <div class="particle-count-box">
+                <span class="particle-count-unit">Concentration:</span>
+                <div>
+                  <span class="particle-count-num" id="count-ldpe_mulch" style="color: #0891b2;">382</span>
+                  <span class="particle-count-unit">frag/L</span>
+                </div>
+              </div>
+              <div class="particle-meter-bar">
+                <div class="particle-meter-fill" style="width: 82%; background: #06b6d4;"></div>
+              </div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.4;">
+                Degraded 25µm farm mulch film; chokes agricultural soil root pores.
+              </div>
+            </div>
+
+            <!-- 2. Paddy Stubble Ash (PAH) -->
+            <div class="particle-chem-card" id="card-stubble_ash">
+              <div class="particle-card-top">
+                <div class="particle-icon-title">
+                  <div class="particle-icon-badge" style="background: #fffbeb; color: #d97706; border: 1px solid #fde68a;">
+                    <i data-lucide="flame" style="width: 18px;"></i>
+                  </div>
+                  <div>
+                    <div class="particle-name">Paddy Stubble Burn Ash</div>
+                    <div class="particle-spec-tag">PAH Carbon Specks • 380nm UV</div>
+                  </div>
+                </div>
+                <span style="font-size: 0.7rem; font-weight: 800; background: #ffedd5; color: #c2410c; padding: 0.2rem 0.55rem; border-radius: var(--radius-full);">CARCINOGENIC</span>
+              </div>
+              <div class="particle-count-box">
+                <span class="particle-count-unit">PAH Density:</span>
+                <div>
+                  <span class="particle-count-num" id="count-stubble_ash" style="color: #d97706;">214</span>
+                  <span class="particle-count-unit">specks/L</span>
+                </div>
+              </div>
+              <div class="particle-meter-bar">
+                <div class="particle-meter-fill" style="width: 68%; background: #f59e0b;"></div>
+              </div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.4;">
+                Carrying polycyclic aromatics (Benzo[a]pyrene) from stubble burning.
+              </div>
+            </div>
+
+            <!-- 3. Pesticide Packaging Residue -->
+            <div class="particle-chem-card" id="card-pesticide_film">
+              <div class="particle-card-top">
+                <div class="particle-icon-title">
+                  <div class="particle-icon-badge" style="background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3;">
+                    <i data-lucide="flask-conical" style="width: 18px;"></i>
+                  </div>
+                  <div>
+                    <div class="particle-name">Pesticide Container Runoff</div>
+                    <div class="particle-spec-tag">Organophosphate Sheen • 520nm</div>
+                  </div>
+                </div>
+                <span style="font-size: 0.7rem; font-weight: 800; background: #ffe4e6; color: #be123c; padding: 0.2rem 0.55rem; border-radius: var(--radius-full);">TOXIC RUNOFF</span>
+              </div>
+              <div class="particle-count-box">
+                <span class="particle-count-unit">Chemical Load:</span>
+                <div>
+                  <span class="particle-count-num" id="count-pesticide_film" style="color: #e11d48;">128</span>
+                  <span class="particle-count-unit">µg/L</span>
+                </div>
+              </div>
+              <div class="particle-meter-bar">
+                <div class="particle-meter-fill" style="width: 54%; background: #f43f5e;"></div>
+              </div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.4;">
+                Chemical packaging residue and adsorbed chlorpyrifos runoff.
+              </div>
+            </div>
+
+            <!-- 4. PP Woven Microfibers -->
+            <div class="particle-chem-card" id="card-pp_fiber">
+              <div class="particle-card-top">
+                <div class="particle-icon-title">
+                  <div class="particle-icon-badge" style="background: #faf5ff; color: #9333ea; border: 1px solid #e9d5ff;">
+                    <i data-lucide="git-commit" style="width: 18px;"></i>
+                  </div>
+                  <div>
+                    <div class="particle-name">PP Fertilizer Sack Microfiber</div>
+                    <div class="particle-spec-tag">Polypropylene Woven • 410nm</div>
+                  </div>
+                </div>
+                <span style="font-size: 0.7rem; font-weight: 800; background: #f3e8ff; color: #7e22ce; padding: 0.2rem 0.55rem; border-radius: var(--radius-full);">MICROFIBER</span>
+              </div>
+              <div class="particle-count-box">
+                <span class="particle-count-unit">Fiber Count:</span>
+                <div>
+                  <span class="particle-count-num" id="count-pp_fiber" style="color: #9333ea;">196</span>
+                  <span class="particle-count-unit">fibers/L</span>
+                </div>
+              </div>
+              <div class="particle-meter-bar">
+                <div class="particle-meter-fill" style="width: 62%; background: #a855f7;"></div>
+              </div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.4;">
+                Synthetic microfibers from torn urea and grain packaging sacks.
+              </div>
+            </div>
+
+            <!-- 5. HDPE Container Microplastics -->
+            <div class="particle-chem-card" id="card-hdpe_fragment">
+              <div class="particle-card-top">
+                <div class="particle-icon-title">
+                  <div class="particle-icon-badge" style="background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0;">
+                    <i data-lucide="package" style="width: 18px;"></i>
+                  </div>
+                  <div>
+                    <div class="particle-name">HDPE Rigid Microplastics</div>
+                    <div class="particle-spec-tag">High-Density Polymer • 490nm</div>
+                  </div>
+                </div>
+                <span style="font-size: 0.7rem; font-weight: 800; background: #dcfce7; color: #15803d; padding: 0.2rem 0.55rem; border-radius: var(--radius-full);">NON-BIO</span>
+              </div>
+              <div class="particle-count-box">
+                <span class="particle-count-unit">Particle Load:</span>
+                <div>
+                  <span class="particle-count-num" id="count-hdpe_fragment" style="color: #16a34a;">94</span>
+                  <span class="particle-count-unit">frag/L</span>
+                </div>
+              </div>
+              <div class="particle-meter-bar">
+                <div class="particle-meter-fill" style="width: 42%; background: #10b981;"></div>
+              </div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.4;">
+                Rigid polymer shards highly resistant to natural environmental breakdown.
+              </div>
+            </div>
+
+            <!-- 6. Mineral River Silt & Clay -->
+            <div class="particle-chem-card" id="card-river_silt">
+              <div class="particle-card-top">
+                <div class="particle-icon-title">
+                  <div class="particle-icon-badge" style="background: #fefce8; color: #ca8a04; border: 1px solid #fef08a;">
+                    <i data-lucide="waves" style="width: 18px;"></i>
+                  </div>
+                  <div>
+                    <div class="particle-name">Mineral Silt & Clay Sediment</div>
+                    <div class="particle-spec-tag">Natural Minerals • 650nm</div>
+                  </div>
+                </div>
+                <span style="font-size: 0.7rem; font-weight: 800; background: #fef9c3; color: #a16207; padding: 0.2rem 0.55rem; border-radius: var(--radius-full);">NATURAL SEDIMENT</span>
+              </div>
+              <div class="particle-count-box">
+                <span class="particle-count-unit">Sediment Turbidity:</span>
+                <div>
+                  <span class="particle-count-num" id="count-river_silt" style="color: #ca8a04;">1,420</span>
+                  <span class="particle-count-unit">ppm</span>
+                </div>
+              </div>
+              <div class="particle-meter-bar">
+                <div class="particle-meter-fill" style="width: 90%; background: #ca8a04;"></div>
+              </div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.4;">
+                Earthy riverbed minerals differentiated from synthetic polymers via optical scattering.
+              </div>
+            </div>
+
+            <!-- 7. Phytoplankton & Algal Biomass -->
+            <div class="particle-chem-card" id="card-organic_algae">
+              <div class="particle-card-top">
+                <div class="particle-icon-title">
+                  <div class="particle-icon-badge" style="background: #f7fee7; color: #65a30d; border: 1px solid #d9f99d;">
+                    <i data-lucide="sprout" style="width: 18px;"></i>
+                  </div>
+                  <div>
+                    <div class="particle-name">Phytoplankton & Algal Biomass</div>
+                    <div class="particle-spec-tag">Chlorophyll-a • 680nm Peak</div>
+                  </div>
+                </div>
+                <span style="font-size: 0.7rem; font-weight: 800; background: #ecfccb; color: #4d7c0f; padding: 0.2rem 0.55rem; border-radius: var(--radius-full);">NATURAL BIOMASS</span>
+              </div>
+              <div class="particle-count-box">
+                <span class="particle-count-unit">Algal Density:</span>
+                <div>
+                  <span class="particle-count-num" id="count-organic_algae" style="color: #65a30d;">610</span>
+                  <span class="particle-count-unit">cell/mL</span>
+                </div>
+              </div>
+              <div class="particle-meter-bar">
+                <div class="particle-meter-fill" style="width: 72%; background: #84cc16;"></div>
+              </div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.4;">
+                Natural aquatic photosynthetic microorganisms; baseline ecosystem indicator.
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    <!-- Live Ground-Truth CPCB & Regional Canal Benchmarks -->
+    <div class="hero-stats">
+      <div class="glass-card stat-box">
+        <div class="stat-value text-gradient-green">&gt;85%</div>
+        <div class="stat-label">Mulch & Ash Optical Classification Accuracy (CPCB NWMP Benchmark)</div>
+      </div>
+      <div class="glass-card stat-box">
+        <div class="stat-value text-gradient-cyan">₹4,500</div>
+        <div class="stat-label">JalDrishti Rover Node vs ₹80 Lakh Fixed River Monitoring Station</div>
+      </div>
+      <div class="glass-card stat-box">
+        <div class="stat-value text-gradient-gold">&lt; 15 min</div>
+        <div class="stat-label">Upstream Agricultural Hotspot Back-Trace Speed (Sentinel-2 Sync)</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- SECTION 1: WHAT JALDRISHTI IS REVEALING (DEEP REALISTIC INFORMATION BELOW ANIMATION) -->
+  <section id="canal-truth" class="container">
+    <div class="section-header">
+      <div class="badge-pill"><i data-lucide="eye"></i> What JalDrishti Uncovers</div>
+      <h2>What is this Platform <span class="text-gradient-green">Trying to Tell Us?</span></h2>
+      <p>
+        Beyond mechanical sensor readings, JalDrishti reveals four critical, data-grounded truths about India's canal networks that have remained unseen for decades.
+      </p>
+    </div>
+
+    <div class="insights-grid">
+      <!-- Insight 1: The Invisible Canal Paradox -->
+      <div class="insight-card">
+        <div>
+          <div class="insight-header">
+            <div class="insight-icon-box" style="background: var(--accent-danger-subtle); color: var(--accent-danger);">
+              <i data-lucide="alert-triangle"></i>
+            </div>
+            <div>
+              <h3>1. The "Clear Water" Illusion</h3>
+              <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Invisible Contaminants Passing Standard Tests</span>
+            </div>
+          </div>
+          <p>
+            Rural irrigation water often looks visually clear and passes standard government pH/TDS tests. However, standard testing completely misses <strong>sub-millimeter polyethylene mulch shreds (LDPE)</strong> and <strong>carcinogenic polycyclic aromatic hydrocarbons (PAHs)</strong> from stubble burning. These microscopic residues pass through traditional intake filters directly into food crops and municipal water intakes.
+          </p>
+        </div>
+        <div>
+          <div class="insight-metric-tag" style="background: var(--accent-danger-subtle); color: var(--accent-danger);">
+            <i data-lucide="shield-alert" style="width: 14px;"></i> Over 840 invisible micro-fragments per liter carry toxic plasticizers
+          </div>
+        </div>
+      </div>
+
+      <!-- Insight 2: Shifting from Blanket Blame to Precision Evidence -->
+      <div class="insight-card">
+        <div>
+          <div class="insight-header">
+            <div class="insight-icon-box" style="background: var(--accent-cyan-subtle); color: var(--accent-cyan);">
+              <i data-lucide="crosshair"></i>
+            </div>
+            <div>
+              <h3>2. Precision Source Pinpointing</h3>
+              <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Replacing Blanket Penalties with Evidence</span>
+            </div>
+          </div>
+          <p>
+            Traditional pollution enforcement frequently levies blanket fines and blame on entire regional farming communities during harvest burning periods. JalDrishti pairs autonomous downstream canal water optical detections with <strong>Sentinel-2 satellite thermal fire maps</strong> to mathematically back-calculate stream flow vectors, pinpointing the specific sub-basin cluster responsible while protecting sustainable farmers.
+          </p>
+        </div>
+        <div>
+          <div class="insight-metric-tag" style="background: var(--accent-cyan-subtle); color: var(--accent-cyan);">
+            <i data-lucide="satellite" style="width: 14px;"></i> Traces downstream spikes to upstream origin clusters in &lt;15 minutes
+          </div>
+        </div>
+      </div>
+
+      <!-- Insight 3: Agricultural Soil Aeration & Food Chain Threat -->
+      <div class="insight-card">
+        <div>
+          <div class="insight-header">
+            <div class="insight-icon-box" style="background: var(--accent-amber-subtle); color: var(--accent-amber);">
+              <i data-lucide="sprout"></i>
+            </div>
+            <div>
+              <h3>3. The Farmland Soil Choke</h3>
+              <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">How Canal Residue Degrades Agricultural Yields</span>
+            </div>
+          </div>
+          <p>
+            When microplastic mulch fragments enter canal distributaries and flood farm fields, they accumulate in topsoil, creating impermeable micro-barriers. This impairs root aeration by <strong>up to 35%</strong>, traps pesticide chemical residues in the root zone, and leads to chronic crop yield degradation. Real-time canal monitoring stops plastic accumulation before it destroys soil health.
+          </p>
+        </div>
+        <div>
+          <div class="insight-metric-tag" style="background: var(--accent-amber-subtle); color: var(--accent-amber);">
+            <i data-lucide="layers" style="width: 14px;"></i> Protects agricultural topsoil fertility across 12,000+ canal-fed acres
+          </div>
+        </div>
+      </div>
+
+      <!-- Insight 4: Early Warning Defense for Municipal Drinking Water -->
+      <div class="insight-card">
+        <div>
+          <div class="insight-header">
+            <div class="insight-icon-box" style="background: var(--accent-green-subtle); color: var(--accent-green);">
+              <i data-lucide="bell-ring"></i>
+            </div>
+            <div>
+              <h3>4. Proactive Drinking Water Defense</h3>
+              <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Automated Intake Valve Shutoff Protocols</span>
+            </div>
+          </div>
+          <p>
+            Canal networks directly feed raw water to drinking treatment facilities in towns and rural villages. Standard coagulation systems cannot bind nano-plastics or dissolved ash PAHs. JalDrishti provides <strong>automated early warning telemetry</strong> that alerts water works engineers to close intake sluice gates hours before toxic contamination pulses reach reservoirs.
+          </p>
+        </div>
+        <div>
+          <div class="insight-metric-tag" style="background: var(--accent-green-subtle); color: var(--accent-green);">
+            <i data-lucide="check-circle-2" style="width: 14px;"></i> Automated push alerts trigger intake diversions to prevent reservoir contamination
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 2: AUTONOMOUS JALDRISHTI ROVER & HARDWARE EXPLORER -->
+  <section id="vessel-3d" class="container">
+    <div class="section-header">
+      <div class="badge-pill"><i data-lucide="cpu"></i> Low-Cost Hardware Architecture</div>
+      <h2>Autonomous <span class="text-gradient-cyan">JalDrishti Rover</span></h2>
+      <p>Built with hydrodynamic stabilizers, solar array power, and optical sensing pods, engineered for rapid rural deployment at canal lock gates.</p>
+    </div>
+
+    <div class="grid-2">
+      <!-- Hardware Breakdown List -->
+      <div class="glass-card">
+        <h3 style="margin-bottom: 1.2rem; font-family: var(--font-heading); color: var(--text-primary);">Hardware Architecture & Bill of Materials</h3>
+        
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <div style="display: flex; align-items: flex-start; gap: 1rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--border-glass);">
+            <div style="background: var(--accent-green-subtle); padding: 0.6rem; border-radius: var(--radius-sm); color: var(--accent-green);">
+              <i data-lucide="sun"></i>
+            </div>
+            <div>
+              <h4 style="font-size: 1rem; color: var(--text-primary);">Solar Deck & Watertight Rover Hull</h4>
+              <p style="font-size: 0.88rem; color: var(--text-secondary);">Hydrodynamic hull with outrigger floats, 360° LiDAR turret, and top solar charging for continuous 24/7 autonomous sweeps.</p>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: flex-start; gap: 1rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--border-glass);">
+            <div style="background: var(--accent-cyan-subtle); padding: 0.6rem; border-radius: var(--radius-sm); color: var(--accent-cyan);">
+              <i data-lucide="aperture"></i>
+            </div>
+            <div>
+              <h4 style="font-size: 1rem; color: var(--text-primary);">Multi-Spectral Optical Tube (380nm - 940nm)</h4>
+              <p style="font-size: 0.88rem; color: var(--text-secondary);">Quad LED excitation array (UV, Visible Green, Red, NIR) paired with photodiode sensor for absorbance polymer fingerprinting.</p>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: flex-start; gap: 1rem;">
+            <div style="background: var(--accent-amber-subtle); padding: 0.6rem; border-radius: var(--radius-sm); color: var(--accent-amber);">
+              <i data-lucide="cpu"></i>
+            </div>
+            <div>
+              <h4 style="font-size: 1rem; color: var(--text-primary);">ESP32 Microcontroller & Edge ML Engine</h4>
+              <p style="font-size: 0.88rem; color: var(--text-secondary);">Lightweight 1D spectral classification model running on-device with LoRaWAN / 4G telemetry transmission.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cost Comparison Card -->
+      <div class="glass-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <h3 style="margin-bottom: 1.2rem; font-family: var(--font-heading); color: var(--text-primary);">Cost Economics (170x Cost Saving)</h3>
+          
+          <div style="background: #fff1f2; border: 1px solid rgba(225, 29, 72, 0.2); padding: 1.3rem; border-radius: var(--radius-sm); margin-bottom: 1rem;">
+            <div style="color: var(--accent-danger); font-weight: 700; font-size: 0.9rem;">TRADITIONAL RIVER STATION</div>
+            <div style="font-size: 2rem; font-weight: 800; color: var(--accent-danger); font-family: var(--font-heading);">₹8,000,000</div>
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 0.3rem;">Heavy infrastructure, high power usage, limited strictly to major river hubs.</p>
+          </div>
+
+          <div style="background: #f0fdf4; border: 1px solid rgba(16, 185, 129, 0.35); padding: 1.3rem; border-radius: var(--radius-sm);">
+            <div style="color: var(--accent-green); font-weight: 700; font-size: 0.9rem;">JALDRISHTI ROVER NODE</div>
+            <div style="font-size: 2rem; font-weight: 800; color: var(--accent-green); font-family: var(--font-heading);">₹4,500</div>
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-top: 0.3rem;">Portable, affordable, deployable across hundreds of rural canal lock gates for complete basin coverage.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 3: INTERACTIVE SPECTRAL & ML SENSOR SIMULATOR -->
+  <section id="simulator" class="container">
+    <div class="section-header">
+      <div class="badge-pill"><i data-lucide="bar-chart-2"></i> Real-Time AI Inference</div>
+      <h2>Spectral Absorbance & <span class="text-gradient-green">ML Classifier Simulator</span></h2>
+      <p>Simulate raw optical absorbance across multi-wavelength light spectrum (380nm - 940nm) to identify invisible agricultural pollutants.</p>
+    </div>
+
+    <div class="grid-2">
+      <!-- Left: Simulator Controls & Chart -->
+      <div class="glass-card">
+        <h3 style="margin-bottom: 1rem; font-size: 1.1rem; color: var(--text-primary);">Select Water Sample Type:</h3>
+        
+        <div class="sample-buttons">
+          <button class="sample-btn active" data-sample="mulch">Plastic Mulch Film (LDPE)</button>
+          <button class="sample-btn" data-sample="stubble">Stubble Burn Ash (PAH)</button>
+          <button class="sample-btn" data-sample="pesticide">Pesticide Container Runoff</button>
+          <button class="sample-btn" data-sample="clean">Clean Canal Water Baseline</button>
+        </div>
+
+        <div class="chart-container">
+          <canvas id="spectralChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Right: AI Classification Readout -->
+      <div class="glass-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3 style="font-size: 1.2rem; font-family: var(--font-heading); color: var(--text-primary);">AI Classifier Readout</h3>
+          <span id="sim-confidence" class="confidence-badge confidence-danger">97.8% Confidence</span>
+        </div>
+
+        <div style="margin-bottom: 1.2rem;">
+          <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Status Classification</div>
+          <div id="sim-status" style="font-size: 1.7rem; font-weight: 800; color: var(--accent-danger); font-family: var(--font-heading);">CRITICAL HAZARD</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 0.9rem; border-top: 1px solid var(--border-glass); padding-top: 1rem;">
+          <div>
+            <span style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Target Fingerprint:</span>
+            <strong id="sim-polymer" style="color: var(--accent-cyan); font-size: 0.95rem; display: block;">Low-Density Polyethylene (LDPE Film Shreds)</strong>
+          </div>
+          <div>
+            <span style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Environmental Hazard:</span>
+            <span id="sim-hazard" style="color: var(--text-primary); font-size: 0.9rem; display: block;">Severe Microplastic Density (&gt;840 fragments/L carrying toxic plasticizer additives)</span>
+          </div>
+          <div>
+            <span style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Automated Action Protocol:</span>
+            <span id="sim-rec" style="color: var(--accent-green); font-size: 0.9rem; display: block;">Alert dispatched to Sirhind Canal Division. Deploy physical floating skimmer net at Lock #4.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 4: INTERACTIVE GIS CANAL NETWORK MAP -->
+  <section id="gis-map" class="container">
+    <div class="section-header">
+      <div class="badge-pill"><i data-lucide="map-pin"></i> Live Area & Nearby Water Resources</div>
+      <h2>Area Hydrology & <span class="text-gradient-cyan">Nearby Water Resources Map</span></h2>
+      <p>Automatically identifies your current area and maps all nearby rivers, lakes, canals, and reservoirs with real-time JalDrishti tracer telemetry.</p>
+    </div>
+
+    <!-- Active Area & GPS Geolocation Banner -->
+    <div class="glass-card" style="margin-bottom: 1.5rem; padding: 1.1rem 1.4rem; border-color: rgba(2, 132, 199, 0.35); background: rgba(255, 255, 255, 0.95);">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <div style="font-size: 0.75rem; font-weight: 800; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.4rem;">
+            <i data-lucide="map-pin" style="width: 14px;"></i> Detected Area Location:
+          </div>
+          <h3 id="current-area-name" style="font-size: 1.4rem; font-weight: 800; color: var(--text-primary); font-family: var(--font-heading);">
+            Acquiring Area Location...
+          </h3>
+          <p id="current-area-desc" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Scanning nearby rivers, irrigation canals, and freshwater lakes...
+          </p>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;">
+          <button id="btn-gps-locate" class="btn-primary" style="padding: 0.55rem 1.15rem; font-size: 0.85rem;">
+            <i data-lucide="crosshair" style="width: 15px;"></i> Use My Live GPS
+          </button>
+          
+          <!-- Quick Region Switcher -->
+          <select id="region-preset-select" style="padding: 0.55rem 0.9rem; border-radius: var(--radius-full); border: 1px solid var(--border-glass-strong); background: #ffffff; color: var(--text-primary); font-size: 0.85rem; font-weight: 600; cursor: pointer; box-shadow: var(--shadow-sm); outline: none;">
+            <option value="auto">📍 Auto-Detect Live GPS Area</option>
+            <option value="pune">📍 Pune / PCMC (Mula, Mutha, Pawana, Khadakwasla)</option>
+            <option value="punjab">📍 Punjab (Sirhind Feeder, Sutlej, Harike)</option>
+            <option value="haryana">📍 Haryana (Western Yamuna Canal, Karnal)</option>
+            <option value="delhi">📍 Delhi NCR (Yamuna River, Okhla)</option>
+            <option value="nashik">📍 Nashik (Godavari River Basin)</option>
+            <option value="haridwar">📍 Haridwar (Ganga River & Upper Canal)</option>
+            <option value="hyderabad">📍 Hyderabad (Hussain Sagar Lake)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- Leaflet Map Container -->
+      <div class="glass-card" style="padding: 0.6rem; display: flex; flex-direction: column;">
+        <div id="canal-map" style="width: 100%; height: 520px; border-radius: var(--radius-sm);"></div>
+        <div style="margin-top: 0.6rem; display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); padding: 0 0.4rem;">
+          <span>💡 <em>Click anywhere on map to inspect water resources in that area</em></span>
+          <span id="map-coords-indicator">Lat: 18.5204° N, Long: 73.8567° E</span>
+        </div>
+      </div>
+
+      <!-- Nearby Water Resources List & Active Telemetry Panel -->
+      <div class="glass-card" style="display: flex; flex-direction: column; justify-content: space-between; max-height: 570px; overflow-y: auto;">
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+            <h3 style="font-size: 1.1rem; font-family: var(--font-heading); color: var(--text-primary); display: flex; align-items: center; gap: 0.45rem;">
+              <i data-lucide="waves" style="color: var(--accent-cyan); width: 18px;"></i> Nearby Water Resources in this Area
+            </h3>
+            <span id="water-count-badge" style="font-size: 0.75rem; font-weight: 800; background: var(--accent-cyan-subtle); color: var(--accent-cyan); padding: 0.2rem 0.6rem; border-radius: 9999px;">5 Detected</span>
+          </div>
+
+          <!-- Dynamic List of Nearby Rivers, Lakes, Canals -->
+          <div id="nearby-water-list" style="display: flex; flex-direction: column; gap: 0.65rem; margin-bottom: 1.2rem;">
+            <!-- Populated Dynamically by map.js -->
+          </div>
+
+          <!-- Active Water Body Selected Telemetry Detail Card -->
+          <div style="background: #f8fafc; border: 1px solid var(--border-glass-strong); padding: 1.1rem 1.25rem; border-radius: var(--radius-sm);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+              <span style="font-size: 0.72rem; font-weight: 800; color: var(--accent-green); text-transform: uppercase;">SELECTED WATER RESOURCE TELEMETRY</span>
+              <span id="nearest-distance-badge" style="font-size: 0.72rem; font-weight: 700; background: #ecfeff; color: #0891b2; padding: 0.15rem 0.55rem; border-radius: 9999px;">Proximity: 0.9 km</span>
+            </div>
+            <h4 id="node-id-display" style="color: var(--accent-cyan); margin-bottom: 0.45rem; font-size: 1.1rem; font-weight: 800;">Mula River Basin (Sangam Reach)</h4>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Microplastic Density: <strong id="node-plastic-display" style="color: var(--accent-danger);">780 fragments/L (LDPE Mulch)</strong></p>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Burn Marker Index: <strong id="node-burn-display" style="color: var(--accent-amber);">Moderate (PAH 0.42)</strong></p>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Classification: <strong id="node-type-display" style="color: var(--accent-green);">River Catchment (Pune / Maharashtra)</strong></p>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);">Upstream Source: <strong id="node-source-display" style="color: var(--accent-cyan);">Old Pune Agricultural Fringe</strong></p>
+          </div>
+        </div>
+
+        <div style="margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid var(--border-glass);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 600; font-size: 0.85rem;"><i data-lucide="flame" style="color: #ea580c; vertical-align: middle; margin-right: 0.35rem;"></i> Sentinel-2 Thermal Stubble Fires</span>
+            <label class="switch">
+              <input type="checkbox" id="toggle-hotspots" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 5: JAL SHAKTI & CPCB GOVERNMENT OPEN DATA DASHBOARD -->
+  <section id="jal-shakti" class="container">
+    <div class="section-header">
+      <div class="badge-pill"><i data-lucide="database"></i> Government Open Data</div>
+      <h2>Jal Shakti & CPCB <span class="text-gradient-gold">Open Data Portal</span></h2>
+      <p>Standardized REST API feeds and GeoJSON endpoints for National Hydrology Project dashboards and municipal water boards.</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="glass-card">
+        <i data-lucide="file-json" style="color: var(--accent-green); width: 34px; height: 34px; margin-bottom: 1rem;"></i>
+        <h3 style="color: var(--text-primary); font-size: 1.2rem;">Open GeoJSON API</h3>
+        <p style="color: var(--text-secondary); font-size: 0.92rem; margin-top: 0.5rem;">
+          Provides real-time GeoJSON endpoints for state pollution control boards to ingest microplastic & PAH indexes directly into central monitoring dashboards.
+        </p>
+      </div>
+
+      <div class="glass-card">
+        <i data-lucide="award" style="color: var(--accent-cyan); width: 34px; height: 34px; margin-bottom: 1rem;"></i>
+        <h3 style="color: var(--text-primary); font-size: 1.2rem;">Policy Compliance</h3>
+        <p style="color: var(--text-secondary); font-size: 0.92rem; margin-top: 0.5rem;">
+          Aligned with National Green Tribunal (NGT) directives and Central Pollution Control Board (CPCB) Class-B river water quality monitoring guidelines.
+        </p>
+      </div>
+
+      <div class="glass-card">
+        <i data-lucide="bell" style="color: var(--accent-amber); width: 34px; height: 34px; margin-bottom: 1rem;"></i>
+        <h3 style="color: var(--text-primary); font-size: 1.2rem;">Intake Early Warnings</h3>
+        <p style="color: var(--text-secondary); font-size: 0.92rem; margin-top: 0.5rem;">
+          Automated push notifications trigger intake valve shutoffs at drinking water treatment plants before toxic chemical pulses reach reservoirs.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 6: REGIONAL IMPACT & COST SAVINGS CALCULATOR -->
+  <section id="calculator" class="container">
+    <div class="section-header">
+      <div class="badge-pill"><i data-lucide="calculator"></i> State Basin Economics</div>
+      <h2>Interactive <span class="text-gradient-cyan">Regional Impact Calculator</span></h2>
+      <p>Adjust total canal length (in kilometers) to see estimated plastic pollution removed and cost savings for state governments.</p>
+    </div>
+
+    <div class="calculator-box" style="max-width: 860px; margin: 0 auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
+        <label for="km-slider" style="font-weight: 700; font-size: 1.15rem; color: var(--text-primary);">Select Canal Network Coverage:</label>
+        <span id="km-display" style="font-size: 1.8rem; font-weight: 800; color: var(--accent-green); font-family: var(--font-heading);">120 km</span>
+      </div>
+
+      <input type="range" id="km-slider" class="range-slider" min="10" max="500" value="120" step="10">
+
+      <div class="grid-3" style="margin-top: 2.2rem; text-align: center;">
+        <div style="background: #f8fafc; padding: 1.2rem; border-radius: var(--radius-sm); border: 1px solid var(--border-glass-strong);">
+          <div id="node-count-display" style="font-size: 1.7rem; font-weight: 800; color: var(--accent-cyan); font-family: var(--font-heading);">10 JalDrishti Rovers</div>
+          <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem; font-weight: 600;">Required Autonomous Rovers</div>
+        </div>
+
+        <div style="background: #f8fafc; padding: 1.2rem; border-radius: var(--radius-sm); border: 1px solid var(--border-glass-strong);">
+          <div id="plastic-removed-display" style="font-size: 1.7rem; font-weight: 800; color: var(--accent-danger); font-family: var(--font-heading);">5,760 kg/yr</div>
+          <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem; font-weight: 600;">Microplastic Mulch Filtered</div>
+        </div>
+
+        <div style="background: #f8fafc; padding: 1.2rem; border-radius: var(--radius-sm); border: 1px solid var(--border-glass-strong);">
+          <div id="savings-display" style="font-size: 1.7rem; font-weight: 800; color: var(--accent-green); font-family: var(--font-heading);">₹80 Lakhs Saved</div>
+          <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem; font-weight: 600;">vs Commercial Fixed Stations</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p style="font-weight: 700; color: var(--text-primary);">JalDrishti • Smart India Hackathon (SIH) Solution • Clean & Green + Agriculture Track</p>
+    <p style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.85rem;">Designed for Presentation & Live Demonstration to SIH Evaluator Jury</p>
+  </footer>
+
+  <!-- JavaScript Scripts -->
+  <script src="js/rover_sim.js?v=20260902_v10"></script>
+  <script src="js/simulator.js?v=20260902_v10"></script>
+  <script src="js/map.js?v=20260902_v10"></script>
+  <script src="js/app.js?v=20260902_v10"></script>
+
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+  </script>
+
+</body>
+</html>
