@@ -2,16 +2,11 @@
    JALDRISHTI ROVER - REAL-TIME AUTONOMOUS WATER NAVIGATION & 180° SCANNING ENGINE
    - Straight forward cruise navigation (0.5 knots).
    - Dynamic U-turn toward mouse pointer location upon hover / pointing.
-   - Compact rover model footprint with agile hydrodynamics.
-   - Full 180° forward multi-spectral optical laser scanning arc.
-   - Comprehensive chemical & element identification of Indian river/canal particles:
-     * LDPE Agricultural Mulch Film (470nm)
-     * Paddy Stubble Ash [PAH Carbon] (380nm)
-     * Organophosphate Pesticide Residue (520nm)
-     * Polypropylene Woven Sack Microfibers (410nm)
-     * HDPE Chemical Container Fragments (490nm)
-     * Mineral River Silt & Clay Sediment (650nm)
-     * Phytoplankton & Algal Biomass (680nm)
+   - Dual Scanning Modes:
+     1. Surface Water Scan (0 - 0.5m): 180° Multi-spectral Optical Laser Fan.
+     2. Subsurface Deep Scan (3m - 5m): Volumetric Bathymetric Acoustic LiDAR Cone.
+   - Calibrated Depth Markers (1m, 2.5m, 3.5m, 5.0m) detecting submerged plastics & silt.
+   - Comprehensive chemical & element identification of Indian river/canal particles.
    ========================================================================== */
 
 (function initJalDrishtiRoverSimulation() {
@@ -55,13 +50,13 @@
     color: '#06b6d4'
   };
 
-  // 2. Compact Rover State & Physics
+  // 2. Compact Rover State, Physics & Dual-Depth Scanning Engine
   const rover = {
     x: width * 0.3,
     y: height * 0.5,
     vx: 0,
     vy: 0,
-    speed: 0.7, // Ultra smooth 0.5 kts precision scanning speed
+    speed: 0.7, // 0.5 kts precision scanning speed
     cruiseSpeed: 0.7,
     turnSpeed: 0.055, // Smooth U-turn turning capability
     angle: 0, // Radians
@@ -70,7 +65,11 @@
     wakeTimer: 0,
     laserSweepAngle: 0,
     laserSweepDir: 1,
-    isUturning: false
+    isUturning: false,
+    scanDepthMode: 'surface', // 'surface' (0 - 0.5m) or 'deep' (3m - 5m)
+    currentDepth: 0.5,
+    targetDepth: 0.5,
+    sonarPulse: 0
   };
 
   // 3. Realistic River & Canal Elements Database
@@ -126,7 +125,7 @@
       peak: '490nm (Teal Peak)',
       confBase: 95.8,
       color: '#10b981',
-      badgeColor: 'rgba(16, 185, 129, 0.9)',
+      badgeColor: 'rgba(168, 85, 247, 0.9)',
       risk: 'NON-BIODEGRADABLE',
       shape: 'shard'
     },
@@ -149,210 +148,220 @@
       confBase: 93.6,
       color: '#84cc16',
       badgeColor: 'rgba(132, 204, 22, 0.9)',
-      risk: 'NATURAL BIOMASS',
+      risk: 'EUTROPHICATION TRACER',
       shape: 'bio_cluster'
     }
   ];
 
-  // 4. Populate River Stream with Floating Elements
-  const particleCount = 115;
+  // 4. Particles Array
   const particles = [];
+  const PARTICLE_COUNT = 48;
 
-  for (let i = 0; i < particleCount; i++) {
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
     const elType = riverElementTypes[Math.floor(Math.random() * riverElementTypes.length)];
     particles.push({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      vx: -(0.25 + Math.random() * 0.35), // Canal stream current flows right-to-left
-      vy: (Math.random() - 0.5) * 0.12,
-      size: 3.0 + Math.random() * 4.0,
+      x: Math.random() * (width || 800),
+      y: Math.random() * (height || 480),
+      vx: -(0.15 + Math.random() * 0.35),
+      vy: (Math.random() - 0.5) * 0.15,
+      size: 4 + Math.random() * 6,
+      rotation: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.02,
       elData: elType,
       scanned: false,
       scanTimer: 0,
-      rotation: Math.random() * Math.PI * 2,
-      rotSpeed: (Math.random() - 0.5) * 0.03
+      depthM: (0.3 + Math.random() * 4.6).toFixed(1) // Depth coordinate 0.3m to 4.9m
     });
   }
 
-  // 5. Foaming Propeller Wake Trail
+  // 5. Wake Bubbles & Detection Pings
   const wakePuffs = [];
-
-  function addWakePuff(x, y, angle, speed) {
-    const rearDist = rover.length * 0.45;
-    const rearX = x - Math.cos(angle) * rearDist;
-    const rearY = y - Math.sin(angle) * rearDist;
-
-    // Twin prop wake trails (left and right)
-    const perpX = -Math.sin(angle) * (rover.width * 0.35);
-    const perpY = Math.cos(angle) * (rover.width * 0.35);
-
-    wakePuffs.push({
-      x: rearX + perpX,
-      y: rearY + perpY,
-      radius: 2.5 + Math.random() * 2.0,
-      maxRadius: 16 + Math.random() * 5,
-      alpha: 0.7,
-      decay: 0.015,
-      vx: -Math.cos(angle) * (speed * 0.2) + (Math.random() - 0.5) * 0.25,
-      vy: -Math.sin(angle) * (speed * 0.2) + (Math.random() - 0.5) * 0.25
-    });
-
-    wakePuffs.push({
-      x: rearX - perpX,
-      y: rearY - perpY,
-      radius: 2.5 + Math.random() * 2.0,
-      maxRadius: 16 + Math.random() * 5,
-      alpha: 0.7,
-      decay: 0.015,
-      vx: -Math.cos(angle) * (speed * 0.2) + (Math.random() - 0.5) * 0.25,
-      vy: -Math.sin(angle) * (speed * 0.2) + (Math.random() - 0.5) * 0.25
-    });
-  }
-
-  // 6. Detection Alert Ping Bursts with Detailed Chemical Classification
   const alertPings = [];
 
   function triggerDetectionPing(x, y, elData) {
-    const confidence = (elData.confBase + (Math.random() * 1.5 - 0.5)).toFixed(1);
-
-    alertPings.push({
-      x: x,
-      y: y,
-      name: elData.name,
-      category: elData.category,
-      peak: elData.peak,
-      conf: confidence + '%',
-      risk: elData.risk,
-      color: elData.color,
-      radius: 6,
-      maxRadius: 32,
-      alpha: 1.0,
-      decay: 0.018
-    });
-
     detectedCount++;
-    const detDisplay = document.getElementById('hud-detected-count');
-    if (detDisplay) detDisplay.textContent = detectedCount.toLocaleString();
-
-    // Increment individual element count and update UI
     if (elementCounts[elData.id] !== undefined) {
       elementCounts[elData.id]++;
-      const elCountDisplay = document.getElementById(`count-${elData.id}`);
-      if (elCountDisplay) {
-        elCountDisplay.textContent = elementCounts[elData.id].toLocaleString();
-      }
-
-      const elCard = document.getElementById(`card-${elData.id}`);
-      if (elCard) {
-        elCard.classList.remove('active-pulse');
-        void elCard.offsetWidth; // Force CSS reflow
-        elCard.classList.add('active-pulse');
-      }
     }
 
-    // Update last scanned element
     lastScannedElement = {
       name: elData.name,
-      category: elData.category,
       peak: elData.peak,
-      conf: confidence + '%',
+      conf: (elData.confBase + (Math.random() * 1.5 - 0.7)).toFixed(1) + '%',
       risk: elData.risk,
       color: elData.color
     };
 
-    // Dynamically update ticker with detected element
-    const ticker = document.getElementById('live-system-ticker');
-    if (ticker && Math.random() < 0.35) {
-      ticker.textContent = `SPECTRAL IDENTIFICATION: ${elData.name} • ${elData.peak} • Conf: ${confidence}% [${elData.risk}]`;
+    alertPings.push({
+      x: x,
+      y: y,
+      radius: 4,
+      maxRadius: 36,
+      color: elData.color,
+      alpha: 1.0,
+      label: elData.name,
+      depthM: rover.scanDepthMode === 'deep' ? `${(3.0 + Math.random() * 1.9).toFixed(1)}m Depth` : 'Surface 0.4m'
+    });
+
+    // Update DOM counters
+    const hudDetected = document.getElementById('hud-detected-count');
+    if (hudDetected) hudDetected.textContent = detectedCount;
+
+    const countCard = document.getElementById(`count-${elData.id}`);
+    if (countCard) countCard.textContent = elementCounts[elData.id];
+
+    const cardEl = document.getElementById(`card-${elData.id}`);
+    if (cardEl) {
+      cardEl.classList.add('particle-card-highlight');
+      setTimeout(() => cardEl.classList.remove('particle-card-highlight'), 600);
     }
   }
 
-  // 7. Navigation Logic: Straight Cruise with Mouse Point U-turn
-  function updateRoverNavigation() {
-    if (isMouseOver && mouseTarget) {
-      // Calculate angle to mouse target
-      const dx = mouseTarget.x - rover.x;
-      const dy = mouseTarget.y - rover.y;
-      const dist = Math.hypot(dx, dy);
+  // 6. Navigation Control API
+  window.setRoverNavSimulationMode = function(modeKey) {
+    const ticker = document.getElementById('live-system-ticker');
 
-      if (dist > 30) {
-        const targetAngle = Math.atan2(dy, dx);
-        let diff = targetAngle - rover.angle;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-
-        // Check if a sharp U-turn is happening
-        if (Math.abs(diff) > Math.PI * 0.5) {
-          rover.isUturning = true;
-          rover.speed = rover.cruiseSpeed * 1.1; // Gentle power into U-turn
-        } else {
-          rover.isUturning = false;
-          rover.speed = rover.cruiseSpeed;
-        }
-
-        // Steer with smooth hydrodynamic turning arc
-        rover.angle += diff * rover.turnSpeed;
-      } else {
-        // Near mouse pointer: continue forward in current straight heading
-        rover.isUturning = false;
-        rover.speed = rover.cruiseSpeed;
+    if (modeKey === 'straight') {
+      isMouseOver = false;
+      mouseTarget = null;
+      if (ticker) {
+        ticker.textContent = rover.scanDepthMode === 'deep' ?
+          'PATROL MODE: Straight Canal Cruise • Subsurface Deep Water Scan (3m - 5m Column Active)' :
+          'PATROL MODE: Continuous Straight Canal Cruise • Full 180° Optical Laser Water Scanning';
       }
-    } else {
-      // Normal straight cruising
-      rover.isUturning = false;
-      rover.speed = rover.cruiseSpeed;
+    } else if (modeKey === 'uturn') {
+      rover.angle += Math.PI;
+      if (ticker) ticker.textContent = 'MANEUVER: Instant 180° U-Turn Executed • Reversing Canal Patrol Direction';
     }
 
-    // Straight forward motion physics
+    document.querySelectorAll('.vessel-mode-btn').forEach(btn => {
+      btn.classList.remove('active');
+      if (btn.dataset.mode === modeKey) btn.classList.add('active');
+    });
+  };
+
+  // 7. Depth Scanning Mode Control API (User Requested)
+  window.setRoverScanDepthMode = function(depthModeKey) {
+    rover.scanDepthMode = depthModeKey;
+    rover.targetDepth = (depthModeKey === 'deep') ? 4.5 : 0.5;
+
+    const ticker = document.getElementById('live-system-ticker');
+    const depthPill = document.getElementById('hud-scan-depth-pill');
+    const depthDisplay = document.getElementById('hud-scan-depth');
+
+    if (depthModeKey === 'deep') {
+      if (ticker) ticker.textContent = 'SUBSURFACE SCAN ACTIVE: Dual-Frequency Bathymetric Multi-Beam Penetrating 3.0m - 5.0m Canal Water Column';
+      if (depthPill) {
+        depthPill.style.background = '#0f172a';
+        depthPill.style.color = '#38bdf8';
+        depthPill.style.borderColor = '#38bdf8';
+      }
+      if (depthDisplay) {
+        depthDisplay.textContent = '4.5m (Subsurface 3m-5m)';
+        depthDisplay.style.color = '#38bdf8';
+      }
+    } else {
+      if (ticker) ticker.textContent = 'SURFACE SCAN ACTIVE: 180° Optical Multi-Spectral Laser Profiling Top 0 - 0.5m Water Surface';
+      if (depthPill) {
+        depthPill.style.background = '#ecfeff';
+        depthPill.style.color = '#0284c7';
+        depthPill.style.borderColor = 'rgba(2, 132, 199, 0.4)';
+      }
+      if (depthDisplay) {
+        depthDisplay.textContent = '0.5m (Surface)';
+        depthDisplay.style.color = '#0284c7';
+      }
+    }
+
+    // Update button states
+    document.querySelectorAll('.vessel-depth-btn').forEach(btn => {
+      btn.classList.remove('active', 'active-deep');
+      if (btn.dataset.depth === depthModeKey) {
+        btn.classList.add(depthModeKey === 'deep' ? 'active-deep' : 'active');
+      }
+    });
+  };
+
+  // 8. Update Rover Navigation & Physics
+  function updateRoverNavigation() {
+    // Smooth depth interpolation
+    rover.currentDepth += (rover.targetDepth - rover.currentDepth) * 0.05;
+    rover.sonarPulse += 0.035;
+    if (rover.sonarPulse > 1) rover.sonarPulse = 0;
+
+    const depthDisplay = document.getElementById('hud-scan-depth');
+    if (depthDisplay) {
+      if (rover.scanDepthMode === 'deep') {
+        const liveD = (rover.currentDepth + Math.sin(simTime * 2) * 0.3).toFixed(1);
+        depthDisplay.textContent = `${liveD}m (3m - 5m Subsurface)`;
+      } else {
+        depthDisplay.textContent = '0.5m (Surface)';
+      }
+    }
+
+    // Mouse Tracking U-turn Logic
+    if (isMouseOver && mouseTarget) {
+      const dx = mouseTarget.x - rover.x;
+      const dy = mouseTarget.y - rover.y;
+      const targetAngle = Math.atan2(dy, dx);
+
+      let angleDiff = targetAngle - rover.angle;
+      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+
+      rover.isUturning = Math.abs(angleDiff) > 0.4;
+      rover.angle += angleDiff * rover.turnSpeed;
+    } else {
+      rover.isUturning = false;
+    }
+
+    // Forward Propulsion
     rover.vx = Math.cos(rover.angle) * rover.speed;
     rover.vy = Math.sin(rover.angle) * rover.speed;
     rover.x += rover.vx;
     rover.y += rover.vy;
 
-    // Boundary Bounce (Smooth reflective U-turn when reaching edge of canal)
-    const margin = 35;
-    if (rover.x < margin) {
-      rover.x = margin;
-      rover.angle = Math.PI - rover.angle;
-    }
-    if (rover.x > width - margin) {
-      rover.x = width - margin;
-      rover.angle = Math.PI - rover.angle;
-    }
-    if (rover.y < margin) {
-      rover.y = margin;
-      rover.angle = -rover.angle;
-    }
-    if (rover.y > height - margin) {
-      rover.y = height - margin;
-      rover.angle = -rover.angle;
-    }
+    // Boundary wrapping
+    const margin = 50;
+    if (rover.x < -margin) rover.x = width + margin;
+    if (rover.x > width + margin) rover.x = -margin;
+    if (rover.y < -margin) rover.y = height + margin;
+    if (rover.y > height + margin) rover.y = -margin;
 
-    // Emit foaming wake
+    // Wake Generation
     rover.wakeTimer++;
-    if (rover.wakeTimer % 2 === 0 && rover.speed > 0.4) {
-      addWakePuff(rover.x, rover.y, rover.angle, rover.speed);
+    if (rover.wakeTimer % 4 === 0) {
+      const sternX = rover.x - Math.cos(rover.angle) * (rover.length * 0.45);
+      const sternY = rover.y - Math.sin(rover.angle) * (rover.length * 0.45);
+      wakePuffs.push({
+        x: sternX,
+        y: sternY,
+        vx: -rover.vx * 0.3 + (Math.random() - 0.5) * 0.15,
+        vy: -rover.vy * 0.3 + (Math.random() - 0.5) * 0.15,
+        radius: 3 + Math.random() * 2,
+        alpha: 0.8,
+        decay: 0.018
+      });
     }
 
-    // Oscillating secondary laser scan ray across the 180° forward arc
-    rover.laserSweepAngle += 0.04 * rover.laserSweepDir;
+    // Laser Sweep Oscillation
+    rover.laserSweepAngle += 0.045 * rover.laserSweepDir;
     if (rover.laserSweepAngle > Math.PI * 0.44) rover.laserSweepDir = -1;
     if (rover.laserSweepAngle < -Math.PI * 0.44) rover.laserSweepDir = 1;
 
     // Telemetry updates
     areaScanned += rover.speed * 0.12;
-    const areaDisplay = document.getElementById('hud-area-scanned');
-    if (areaDisplay) areaDisplay.textContent = Math.floor(areaScanned) + ' m²';
-
     const speedDisplay = document.getElementById('hud-rover-speed');
     if (speedDisplay) speedDisplay.textContent = (rover.speed * 0.72).toFixed(1) + ' kts';
   }
 
-  // 8. Update Particles & 180° Laser Arc Detection Collision
+  // 9. Update Particles & Detection Collision
   function updateParticles() {
     const bowX = rover.x + Math.cos(rover.angle) * (rover.length * 0.42);
     const bowY = rover.y + Math.sin(rover.angle) * (rover.length * 0.42);
-    const laserReach = 160; // Deep water optical penetration reach
+    const isDeep = rover.scanDepthMode === 'deep';
+    const laserReach = isDeep ? 245 : 160;
+    const maxSpread = isDeep ? (Math.PI * 0.42) : (Math.PI * 0.5);
 
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
@@ -365,7 +374,7 @@
       if (p.y < -20) p.y = height + 20;
       if (p.y > height + 20) p.y = -20;
 
-      // Check if particle is inside the FULL 180° FORWARD LASER ARC
+      // Check if particle is inside the active optical/acoustic scan zone
       const dx = p.x - bowX;
       const dy = p.y - bowY;
       const dist = Math.hypot(dx, dy);
@@ -376,11 +385,10 @@
         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
 
-        // 180-Degree Forward Arc condition: |angleDiff| <= 90° (Math.PI / 2)
-        if (Math.abs(angleDiff) <= Math.PI * 0.5) {
+        if (Math.abs(angleDiff) <= maxSpread) {
           if (!p.scanned) {
             p.scanned = true;
-            p.scanTimer = 32; // Highlight glow timer
+            p.scanTimer = 34; // Glow duration
             triggerDetectionPing(p.x, p.y, p.elData);
           }
         }
@@ -390,18 +398,26 @@
     }
   }
 
-  // 9. Render Engine
+  // 10. Water Background & Bathymetric Gradient
   function drawWaterBackground() {
-    // Deep canal water gradient
+    const isDeep = rover.scanDepthMode === 'deep';
+
+    // Dynamic water gradient (deeper abyss tint when underwater mode is active)
     const waterGrad = ctx.createLinearGradient(0, 0, 0, height);
-    waterGrad.addColorStop(0, '#0284c7');
-    waterGrad.addColorStop(0.5, '#0369a1');
-    waterGrad.addColorStop(1, '#075985');
+    if (isDeep) {
+      waterGrad.addColorStop(0, '#024e75');
+      waterGrad.addColorStop(0.4, '#033f63');
+      waterGrad.addColorStop(1, '#071e3d');
+    } else {
+      waterGrad.addColorStop(0, '#0284c7');
+      waterGrad.addColorStop(0.5, '#0369a1');
+      waterGrad.addColorStop(1, '#075985');
+    }
     ctx.fillStyle = waterGrad;
     ctx.fillRect(0, 0, width, height);
 
     // Dynamic water flow streamlines
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.strokeStyle = isDeep ? 'rgba(56, 189, 248, 0.08)' : 'rgba(255, 255, 255, 0.08)';
     ctx.lineWidth = 1.2;
     for (let y = 25; y < height; y += 40) {
       ctx.beginPath();
@@ -413,8 +429,8 @@
       ctx.stroke();
     }
 
-    // Sunlight Caustic Refraction Glimmers
-    ctx.fillStyle = 'rgba(224, 242, 254, 0.05)';
+    // Caustic Refraction Glimmers
+    ctx.fillStyle = isDeep ? 'rgba(56, 189, 248, 0.03)' : 'rgba(224, 242, 254, 0.05)';
     for (let i = 0; i < 8; i++) {
       const cx = (simTime * 20 + i * 110) % (width + 100) - 50;
       const cy = (height * 0.15 + i * 42) % height;
@@ -424,6 +440,7 @@
     }
   }
 
+  // 11. Wake Rendering
   function drawWake() {
     for (let i = wakePuffs.length - 1; i >= 0; i--) {
       const w = wakePuffs[i];
@@ -442,14 +459,16 @@
       ctx.fillStyle = `rgba(255, 255, 255, ${w.alpha * 0.38})`;
       ctx.fill();
 
-      // Outer ripple ring
       ctx.strokeStyle = `rgba(224, 242, 254, ${w.alpha * 0.45})`;
       ctx.lineWidth = 0.9;
       ctx.stroke();
     }
   }
 
+  // 12. Particles Rendering with Submerged Depth Indicator
   function drawParticles() {
+    const isDeep = rover.scanDepthMode === 'deep';
+
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
       const el = p.elData;
@@ -463,7 +482,6 @@
       }
 
       if (el.shape === 'film') {
-        // Translucent Plastic Mulch Shred
         ctx.fillStyle = p.scanTimer > 0 ? '#67e8f9' : 'rgba(224, 242, 254, 0.8)';
         ctx.beginPath();
         ctx.moveTo(-p.size, -p.size * 0.6);
@@ -473,13 +491,11 @@
         ctx.closePath();
         ctx.fill();
       } else if (el.shape === 'ash_speck') {
-        // Porous Stubble Burn Carbon Ash Speck
         ctx.fillStyle = p.scanTimer > 0 ? '#fbbf24' : 'rgba(245, 158, 11, 0.85)';
         ctx.beginPath();
         ctx.arc(0, 0, p.size * 0.55, 0, Math.PI * 2);
         ctx.fill();
       } else if (el.shape === 'fiber') {
-        // Synthetic Woven Microfiber Thread
         ctx.strokeStyle = p.scanTimer > 0 ? '#c084fc' : 'rgba(168, 85, 247, 0.85)';
         ctx.lineWidth = 1.8;
         ctx.beginPath();
@@ -487,13 +503,11 @@
         ctx.bezierCurveTo(-p.size * 0.2, p.size * 0.6, p.size * 0.2, -p.size * 0.6, p.size * 1.2, p.size * 0.4);
         ctx.stroke();
       } else if (el.shape === 'silt_grain') {
-        // Earthy Mineral River Silt Grain
         ctx.fillStyle = p.scanTimer > 0 ? '#fde047' : 'rgba(202, 138, 4, 0.85)';
         ctx.beginPath();
         ctx.ellipse(0, 0, p.size * 0.6, p.size * 0.4, Math.PI / 4, 0, Math.PI * 2);
         ctx.fill();
       } else if (el.shape === 'bio_cluster') {
-        // Phytoplankton & Organic Algal Cluster
         ctx.fillStyle = p.scanTimer > 0 ? '#bef264' : 'rgba(132, 204, 22, 0.8)';
         ctx.beginPath();
         ctx.arc(-p.size * 0.3, 0, p.size * 0.35, 0, Math.PI * 2);
@@ -501,90 +515,212 @@
         ctx.arc(0, -p.size * 0.3, p.size * 0.35, 0, Math.PI * 2);
         ctx.fill();
       } else {
-        // Jagged Plastic / Pesticide Container Flake
         ctx.fillStyle = p.scanTimer > 0 ? el.color : 'rgba(244, 63, 94, 0.8)';
         ctx.fillRect(-p.size * 0.5, -p.size * 0.35, p.size, p.size * 0.7);
       }
 
       ctx.restore();
+
+      // In deep scan mode, draw small depth tag on illuminated particles
+      if (isDeep && p.scanTimer > 15) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+        ctx.fillRect(p.x + 8, p.y - 12, 48, 13);
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 8px Inter, sans-serif';
+        ctx.fillText(`-${p.depthM}m`, p.x + 12, p.y - 2);
+        ctx.restore();
+      }
     }
   }
 
-  // FULL 180-DEGREE MULTI-SPECTRAL OPTICAL SCANNING FAN
+  // 13. DUAL-MODE SCANNING FAN: SURFACE (180°) OR SUBSURFACE DEEP CONE (3m - 5m)
   function drawLaserFan() {
     const bowX = rover.x + Math.cos(rover.angle) * (rover.length * 0.42);
     const bowY = rover.y + Math.sin(rover.angle) * (rover.length * 0.42);
-    const laserReach = 160;
-    const startAngle = rover.angle - Math.PI * 0.5; // -90° (Left beam)
-    const endAngle = rover.angle + Math.PI * 0.5;   // +90° (Right beam)
 
     ctx.save();
 
-    // 1. Full 180° Multi-Spectral Optical Gradient Fill
-    const fanGrad = ctx.createRadialGradient(bowX, bowY, 8, bowX, bowY, laserReach);
-    fanGrad.addColorStop(0, 'rgba(6, 182, 212, 0.85)');
-    fanGrad.addColorStop(0.35, 'rgba(16, 185, 129, 0.45)');
-    fanGrad.addColorStop(0.75, 'rgba(139, 92, 246, 0.25)');
-    fanGrad.addColorStop(1, 'rgba(6, 182, 212, 0)');
+    if (rover.scanDepthMode === 'deep') {
+      // =========================================================================
+      // MODE 2: SUBSURFACE DEEP SCAN (3m - 5m WATER COLUMN ACOUSTIC-OPTICAL CONE)
+      // =========================================================================
+      const deepReach = 245; // Represents 5 meters depth reach
+      const beamSpread = Math.PI * 0.38; // Conical multi-beam penetration angle
 
-    ctx.beginPath();
-    ctx.moveTo(bowX, bowY);
-    ctx.arc(bowX, bowY, laserReach, startAngle, endAngle);
-    ctx.closePath();
-    ctx.fillStyle = fanGrad;
-    ctx.fill();
+      // 1. Deep Volumetric Depth Gradient
+      const coneGrad = ctx.createRadialGradient(bowX, bowY, 12, bowX, bowY, deepReach);
+      coneGrad.addColorStop(0, 'rgba(56, 189, 248, 0.95)');
+      coneGrad.addColorStop(0.25, 'rgba(2, 132, 199, 0.65)');
+      coneGrad.addColorStop(0.65, 'rgba(30, 27, 75, 0.45)');
+      coneGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
 
-    // 2. 180° Boundary Arc Outline
-    ctx.strokeStyle = 'rgba(6, 182, 212, 0.6)';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.arc(bowX, bowY, laserReach, startAngle, endAngle);
-    ctx.stroke();
-    ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(bowX, bowY);
+      ctx.arc(bowX, bowY, deepReach, rover.angle - beamSpread, rover.angle + beamSpread);
+      ctx.closePath();
+      ctx.fillStyle = coneGrad;
+      ctx.fill();
 
-    // 3. 180° Left & Right Perimeter Laser Boundary Beams (Cyan)
-    ctx.strokeStyle = '#06b6d4';
-    ctx.lineWidth = 1.8;
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = '#06b6d4';
+      // 2. Pulsing Sonar Wavefronts (Echoing downward through water column)
+      for (let ring = 1; ring <= 4; ring++) {
+        const ringProgress = (rover.sonarPulse + ring * 0.25) % 1;
+        const ringDist = ringProgress * deepReach;
+        ctx.strokeStyle = `rgba(56, 189, 248, ${(1 - ringProgress) * 0.65})`;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.arc(bowX, bowY, ringDist, rover.angle - beamSpread, rover.angle + beamSpread);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
 
-    // Left 90° Wing Beam
-    ctx.beginPath();
-    ctx.moveTo(bowX, bowY);
-    ctx.lineTo(bowX + Math.cos(startAngle) * laserReach, bowY + Math.sin(startAngle) * laserReach);
-    ctx.stroke();
+      // 3. Calibrated Depth Contour Rings & Depth Level Labels
+      const depthMarks = [
+        { depthM: '1.0m', dist: deepReach * 0.22, label: 'Upper Layer (Floatables & Mulch)', color: '#38bdf8' },
+        { depthM: '2.5m', dist: deepReach * 0.50, label: 'Mid-Column (Suspended Microplastics)', color: '#06b6d4' },
+        { depthM: '3.5m', dist: deepReach * 0.72, label: 'Thermocline (Agrochemical Runoff)', color: '#10b981' },
+        { depthM: '5.0m', dist: deepReach * 0.96, label: 'Deep Bed (Sinking PAHs & Silt)', color: '#f59e0b' }
+      ];
 
-    // Right 90° Wing Beam
-    ctx.beginPath();
-    ctx.moveTo(bowX, bowY);
-    ctx.lineTo(bowX + Math.cos(endAngle) * laserReach, bowY + Math.sin(endAngle) * laserReach);
-    ctx.stroke();
+      depthMarks.forEach(dm => {
+        // Contour ring arc
+        ctx.strokeStyle = dm.color;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.arc(bowX, bowY, dm.dist, rover.angle - beamSpread * 0.95, rover.angle + beamSpread * 0.95);
+        ctx.stroke();
 
-    // 4. Center Forward Laser Beam (0° Bow Angle)
-    ctx.strokeStyle = '#10b981';
-    ctx.lineWidth = 2.0;
-    ctx.shadowColor = '#10b981';
-    ctx.beginPath();
-    ctx.moveTo(bowX, bowY);
-    ctx.lineTo(bowX + Math.cos(rover.angle) * laserReach, bowY + Math.sin(rover.angle) * laserReach);
-    ctx.stroke();
+        // Depth badge along beam boundary
+        const labelAngle = rover.angle + beamSpread * 0.98;
+        const lx = bowX + Math.cos(labelAngle) * dm.dist;
+        const ly = bowY + Math.sin(labelAngle) * dm.dist;
 
-    // 5. Active Oscillating Laser Sweep Needle across 180° Arc
-    const sweepAngle = rover.angle + rover.laserSweepAngle;
-    ctx.strokeStyle = '#a855f7';
-    ctx.lineWidth = 2.2;
-    ctx.shadowBlur = 14;
-    ctx.shadowColor = '#a855f7';
-    ctx.beginPath();
-    ctx.moveTo(bowX, bowY);
-    ctx.lineTo(bowX + Math.cos(sweepAngle) * laserReach, bowY + Math.sin(sweepAngle) * laserReach);
-    ctx.stroke();
+        ctx.save();
+        ctx.translate(lx, ly);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+        ctx.strokeStyle = dm.color;
+        ctx.lineWidth = 1;
+        ctx.fillRect(4, -9, 138, 16);
+        ctx.strokeRect(4, -9, 138, 16);
+        ctx.fillStyle = dm.color;
+        ctx.font = 'bold 9px Inter, sans-serif';
+        ctx.fillText(`▼ ${dm.depthM} : ${dm.label}`, 8, 3);
+        ctx.restore();
+      });
+
+      // 4. Center High-Intensity LiDAR/Sonar Penetration Beam (5.0m Depth)
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.4;
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = '#38bdf8';
+      ctx.beginPath();
+      ctx.moveTo(bowX, bowY);
+      ctx.lineTo(bowX + Math.cos(rover.angle) * deepReach, bowY + Math.sin(rover.angle) * deepReach);
+      ctx.stroke();
+
+      // 5. Active Oscillating Multi-Beam Sweeper within Cone
+      const sweepA = rover.angle + Math.sin(simTime * 3.2) * (beamSpread * 0.85);
+      ctx.strokeStyle = '#a855f7';
+      ctx.lineWidth = 2.2;
+      ctx.shadowColor = '#a855f7';
+      ctx.beginPath();
+      ctx.moveTo(bowX, bowY);
+      ctx.lineTo(bowX + Math.cos(sweepA) * deepReach, bowY + Math.sin(sweepA) * deepReach);
+      ctx.stroke();
+
+      // 6. On-Canvas Deep Subsurface Status Badge
+      ctx.save();
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1.4;
+      if (ctx.roundRect) ctx.roundRect(14, height - 56, 260, 44, 8);
+      else ctx.rect(14, height - 56, 260, 44);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 11px Inter, sans-serif';
+      ctx.fillText('⬇️ SUBSURFACE DEEP SCAN (3m - 5m)', 24, height - 35);
+
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '9px Inter, sans-serif';
+      const liveDText = (rover.currentDepth + Math.sin(simTime * 2) * 0.3).toFixed(1);
+      ctx.fillText(`Active Bathymetric Depth: ${liveDText}m / 5.0m • Multi-Beam Active`, 24, height - 20);
+      ctx.restore();
+
+    } else {
+      // =========================================================================
+      // MODE 1: STANDARD SURFACE WATER SCAN (0 - 0.5m 180° OPTICAL LASER FAN)
+      // =========================================================================
+      const laserReach = 160;
+      const startAngle = rover.angle - Math.PI * 0.5; // -90° (Left beam)
+      const endAngle = rover.angle + Math.PI * 0.5;   // +90° (Right beam)
+
+      // 1. Full 180° Multi-Spectral Optical Gradient Fill
+      const fanGrad = ctx.createRadialGradient(bowX, bowY, 8, bowX, bowY, laserReach);
+      fanGrad.addColorStop(0, 'rgba(6, 182, 212, 0.85)');
+      fanGrad.addColorStop(0.35, 'rgba(16, 185, 129, 0.45)');
+      fanGrad.addColorStop(0.75, 'rgba(139, 92, 246, 0.25)');
+      fanGrad.addColorStop(1, 'rgba(6, 182, 212, 0)');
+
+      ctx.beginPath();
+      ctx.moveTo(bowX, bowY);
+      ctx.arc(bowX, bowY, laserReach, startAngle, endAngle);
+      ctx.closePath();
+      ctx.fillStyle = fanGrad;
+      ctx.fill();
+
+      // 2. 180° Boundary Arc Outline
+      ctx.strokeStyle = 'rgba(6, 182, 212, 0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.arc(bowX, bowY, laserReach, startAngle, endAngle);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 3. 180° Left & Right Perimeter Laser Boundary Beams (Cyan)
+      ctx.strokeStyle = '#06b6d4';
+      ctx.lineWidth = 1.8;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#06b6d4';
+
+      ctx.beginPath();
+      ctx.moveTo(bowX, bowY);
+      ctx.lineTo(bowX + Math.cos(startAngle) * laserReach, bowY + Math.sin(startAngle) * laserReach);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(bowX, bowY);
+      ctx.lineTo(bowX + Math.cos(endAngle) * laserReach, bowY + Math.sin(endAngle) * laserReach);
+      ctx.stroke();
+
+      // 4. Center Forward Laser Beam (0° Bow Angle)
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 2.0;
+      ctx.shadowColor = '#10b981';
+      ctx.beginPath();
+      ctx.moveTo(bowX, bowY);
+      ctx.lineTo(bowX + Math.cos(rover.angle) * laserReach, bowY + Math.sin(rover.angle) * laserReach);
+      ctx.stroke();
+
+      // 5. Active Oscillating Laser Sweep Needle across 180° Arc
+      const sweepAngle = rover.angle + rover.laserSweepAngle;
+      ctx.strokeStyle = '#a855f7';
+      ctx.lineWidth = 2.2;
+      ctx.shadowBlur = 14;
+      ctx.shadowColor = '#a855f7';
+      ctx.beginPath();
+      ctx.moveTo(bowX, bowY);
+      ctx.lineTo(bowX + Math.cos(sweepAngle) * laserReach, bowY + Math.sin(sweepAngle) * laserReach);
+      ctx.stroke();
+    }
 
     ctx.restore();
   }
 
-  // COMPACT JALDRISHTI ROVER MODEL
+  // 14. COMPACT JALDRISHTI ROVER MODEL
   function drawRover() {
     ctx.save();
     ctx.translate(rover.x, rover.y);
@@ -599,115 +735,124 @@
       ctx.transform(1, 0, 0.12, 1, 0, 0);
     }
 
-    // 1. Water Drop Shadow
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-    ctx.shadowBlur = 14;
-    ctx.shadowOffsetY = 6;
+    // 1. Sleek Outrigger Stabilizer Pontoons
+    const pontoonW = 7;
+    const pontoonL = 38;
+    const pontoonSpread = 22;
 
-    // 2. Twin Stabilizing Outrigger Floats (Pontoons) - Compact Size
-    ctx.fillStyle = '#1e293b';
+    ctx.fillStyle = '#0284c7';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1;
+
     // Left Pontoon
     ctx.beginPath();
-    ctx.roundRect(-rover.length * 0.4, -rover.width * 0.6, rover.length * 0.8, 6, 3);
+    ctx.roundRect ? ctx.roundRect(-pontoonL * 0.45, -pontoonSpread - pontoonW * 0.5, pontoonL, pontoonW, 3) :
+      ctx.rect(-pontoonL * 0.45, -pontoonSpread - pontoonW * 0.5, pontoonL, pontoonW);
     ctx.fill();
-    // Right Pontoon
-    ctx.beginPath();
-    ctx.roundRect(-rover.length * 0.4, rover.width * 0.6 - 6, rover.length * 0.8, 6, 3);
-    ctx.fill();
-
-    // Carbon Connection Struts
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(-rover.length * 0.2, -rover.width * 0.6, 4, rover.width * 1.2);
-    ctx.fillRect(rover.length * 0.15, -rover.width * 0.6, 4, rover.width * 1.2);
-
-    // 3. Main Rover Hull (Aerodynamic White with Tapered Nose)
-    ctx.shadowBlur = 10;
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.moveTo(rover.length * 0.48, 0); // Nose tip
-    ctx.lineTo(rover.length * 0.32, -rover.width * 0.42); // Bow left
-    ctx.lineTo(-rover.length * 0.42, -rover.width * 0.38); // Stern left
-    ctx.lineTo(-rover.length * 0.46, 0); // Stern center
-    ctx.lineTo(-rover.length * 0.42, rover.width * 0.38); // Stern right
-    ctx.lineTo(rover.length * 0.32, rover.width * 0.42); // Bow right
-    ctx.closePath();
-    ctx.fill();
-
-    // Hull Border Outline
-    ctx.strokeStyle = '#0284c7';
-    ctx.lineWidth = 1.2;
     ctx.stroke();
 
-    // 4. Emerald Green Racing Trim
-    ctx.fillStyle = '#10b981';
-    ctx.fillRect(-rover.length * 0.32, -rover.width * 0.36, rover.length * 0.62, 2.5);
-    ctx.fillRect(-rover.length * 0.32, rover.width * 0.36 - 2.5, rover.length * 0.62, 2.5);
+    // Right Pontoon
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(-pontoonL * 0.45, pontoonSpread - pontoonW * 0.5, pontoonL, pontoonW, 3) :
+      ctx.rect(-pontoonL * 0.45, pontoonSpread - pontoonW * 0.5, pontoonL, pontoonW);
+    ctx.fill();
+    ctx.stroke();
 
-    // 5. Monocrystalline Solar Top Deck (Deep Blue Cells)
-    ctx.fillStyle = '#0284c7';
-    ctx.fillRect(-rover.length * 0.22, -rover.width * 0.24, rover.length * 0.42, rover.width * 0.48);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    // Carbon fiber connecting struts
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -pontoonSpread);
+    ctx.lineTo(0, pontoonSpread);
+    ctx.stroke();
+
+    // 2. Main Central Hull (Streamlined Hydrodynamic Vessel)
+    const hullGrad = ctx.createLinearGradient(-rover.length * 0.5, 0, rover.length * 0.5, 0);
+    hullGrad.addColorStop(0, '#0f172a');
+    hullGrad.addColorStop(0.5, '#1e293b');
+    hullGrad.addColorStop(1, '#0284c7');
+
+    ctx.fillStyle = hullGrad;
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 1.5;
+
+    ctx.beginPath();
+    ctx.moveTo(rover.length * 0.5, 0); // Sharp Bow
+    ctx.bezierCurveTo(rover.length * 0.25, -rover.width * 0.5, -rover.length * 0.35, -rover.width * 0.5, -rover.length * 0.5, -rover.width * 0.35);
+    ctx.lineTo(-rover.length * 0.5, rover.width * 0.35); // Square Stern
+    ctx.bezierCurveTo(-rover.length * 0.35, rover.width * 0.5, rover.length * 0.25, rover.width * 0.5, rover.length * 0.5, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 3. Solar Photovoltaic Top Deck Array
+    ctx.fillStyle = '#0369a1';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(-rover.length * 0.3, -rover.width * 0.3, rover.length * 0.45, rover.width * 0.6, 3) :
+      ctx.rect(-rover.length * 0.3, -rover.width * 0.3, rover.length * 0.45, rover.width * 0.6);
+    ctx.fill();
+    ctx.stroke();
+
+    // Photovoltaic grid lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
     ctx.lineWidth = 0.6;
-    ctx.strokeRect(-rover.length * 0.22, -rover.width * 0.24, rover.length * 0.42, rover.width * 0.48);
-
-    // 6. Rotating 360° LiDAR Navigation Turret
-    ctx.fillStyle = '#0f172a';
     ctx.beginPath();
-    ctx.arc(-rover.length * 0.26, 0, 5.5, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(-rover.length * 0.08, -rover.width * 0.3);
+    ctx.lineTo(-rover.length * 0.08, rover.width * 0.3);
+    ctx.stroke();
 
-    // Pulsing Navigation Beacon LED
-    const beaconGlow = Math.sin(simTime * 8) > 0;
-    ctx.fillStyle = beaconGlow ? '#10b981' : '#06b6d4';
+    // 4. Center Turret / Sensor Dome
+    ctx.fillStyle = '#0ea5e9';
     ctx.shadowBlur = 8;
-    ctx.shadowColor = ctx.fillStyle;
+    ctx.shadowColor = '#38bdf8';
     ctx.beginPath();
-    ctx.arc(-rover.length * 0.26, 0, 2.8, 0, Math.PI * 2);
+    ctx.arc(rover.length * 0.18, 0, 5, 0, Math.PI * 2);
     ctx.fill();
 
-    // 7. Subsurface Optical Sensor Node (At Bow)
-    ctx.fillStyle = '#06b6d4';
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = '#06b6d4';
-    ctx.beginPath();
-    ctx.arc(rover.length * 0.42, 0, 3.8, 0, Math.PI * 2);
-    ctx.fill();
+    // 5. Quad Spectral LED Emitters at Bow
+    const ledColors = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b'];
+    for (let k = 0; k < 4; k++) {
+      const ledY = (k - 1.5) * 4;
+      ctx.fillStyle = ledColors[k];
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = ledColors[k];
+      ctx.beginPath();
+      ctx.arc(rover.length * 0.45, ledY, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     ctx.restore();
   }
 
-  // Draw Mouse Target Reticle when pointer is over water
+  // 15. Mouse Target Indicator
   function drawMouseTarget() {
     if (!isMouseOver || !mouseTarget) return;
 
     ctx.save();
+    ctx.translate(mouseTarget.x, mouseTarget.y);
+
     ctx.strokeStyle = '#10b981';
     ctx.lineWidth = 1.5;
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = '#10b981';
-
-    // Outer Target Circle
     ctx.beginPath();
-    ctx.arc(mouseTarget.x, mouseTarget.y, 14 + Math.sin(simTime * 6) * 3, 0, Math.PI * 2);
+    ctx.arc(0, 0, 10 + Math.sin(simTime * 6) * 2, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Crosshair Lines
+    ctx.fillStyle = '#10b981';
     ctx.beginPath();
-    ctx.moveTo(mouseTarget.x - 8, mouseTarget.y);
-    ctx.lineTo(mouseTarget.x + 8, mouseTarget.y);
-    ctx.moveTo(mouseTarget.x, mouseTarget.y - 8);
-    ctx.lineTo(mouseTarget.x, mouseTarget.y + 8);
-    ctx.stroke();
+    ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.restore();
   }
 
-  // Clean, Unobtrusive Particle Glowing Highlights (No Text Blocking Canvas)
+  // 16. Alert Pings Animation
   function drawAlertPings() {
     for (let i = alertPings.length - 1; i >= 0; i--) {
       const ping = alertPings[i];
       ping.radius += 0.8;
-      ping.alpha -= ping.decay;
+      ping.alpha -= 0.024;
 
       if (ping.alpha <= 0) {
         alertPings.splice(i, 1);
@@ -715,81 +860,64 @@
       }
 
       ctx.save();
-      ctx.globalAlpha = ping.alpha;
-
-      // 1. Sleek Expanding Glowing Reticle Ring
       ctx.strokeStyle = ping.color;
       ctx.lineWidth = 1.8;
-      ctx.shadowBlur = 14;
-      ctx.shadowColor = ping.color;
+      ctx.globalAlpha = ping.alpha;
       ctx.beginPath();
       ctx.arc(ping.x, ping.y, ping.radius, 0, Math.PI * 2);
       ctx.stroke();
 
-      // 2. Secondary Subtle Pulse Ring
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.arc(ping.x, ping.y, ping.radius * 0.6, 0, Math.PI * 2);
-      ctx.stroke();
+      // Particle label with depth info
+      if (ping.radius > 12 && ping.alpha > 0.4) {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 10px Inter, sans-serif';
+        ctx.fillText(`${ping.label} (${ping.depthM})`, ping.x + ping.radius + 4, ping.y - 2);
+      }
 
       ctx.restore();
     }
   }
 
-  // 11. Mouse Pointer Tracking for Dynamic U-Turn
+  // 17. Mouse Interaction Event Listeners
   canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
     mouseTarget = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+      x: (e.clientX - rect.left) * (canvas.width / rect.width),
+      y: (e.clientY - rect.top) * (canvas.height / rect.height)
     };
     isMouseOver = true;
 
     const ticker = document.getElementById('live-system-ticker');
     if (ticker) {
-      ticker.textContent = 'AUTONOMOUS U-TURN: Executing Hydrodynamic U-Turn Arc to Target Mouse Coordinates • 180° Optical Scan Active';
+      ticker.textContent = rover.scanDepthMode === 'deep' ?
+        'AUTONOMOUS VECTOR: Navigating to Target Area • Subsurface Multi-Beam Scanning (3m - 5m)' :
+        'AUTONOMOUS VECTOR: Steering Toward Target Area • 180° Optical Laser Scanning';
     }
   });
 
   canvas.addEventListener('mouseleave', () => {
     isMouseOver = false;
     mouseTarget = null;
-    const ticker = document.getElementById('live-system-ticker');
-    if (ticker) {
-      ticker.textContent = 'PATROL MODE: Straight Cruise Navigation along Canal Channel • 180° Subsurface Laser Scanning';
-    }
   });
 
   canvas.addEventListener('click', (e) => {
     const rect = canvas.getBoundingClientRect();
-    mouseTarget = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    };
-    isMouseOver = true;
+    const clickX = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const clickY = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+    alertPings.push({
+      x: clickX,
+      y: clickY,
+      radius: 4,
+      maxRadius: 40,
+      color: '#38bdf8',
+      alpha: 1.0,
+      label: rover.scanDepthMode === 'deep' ? 'Subsurface Acoustic Ping (4.2m)' : 'Surface Optical Ping (0.5m)',
+      depthM: rover.scanDepthMode === 'deep' ? '4.2m' : '0.5m'
+    });
   });
 
-  // 12. Navigation Mode API
-  window.setRoverNavSimulationMode = function(modeKey) {
-    const ticker = document.getElementById('live-system-ticker');
-
-    if (modeKey === 'straight') {
-      isMouseOver = false;
-      mouseTarget = null;
-      if (ticker) ticker.textContent = 'PATROL MODE: Continuous Straight Canal Cruise • Full 180° Optical Laser Water Scanning';
-    } else if (modeKey === 'uturn') {
-      // Trigger immediate 180° U-turn
-      rover.angle += Math.PI;
-      if (ticker) ticker.textContent = 'MANEUVER: Instant 180° U-Turn Executed • Reversing Canal Patrol Direction';
-    }
-
-    document.querySelectorAll('.vessel-mode-btn').forEach(btn => {
-      btn.classList.remove('active');
-      if (btn.dataset.mode === modeKey) btn.classList.add('active');
-    });
-  };
-
-  // 13. Master Animation Loop (Clean, Unblocked View)
+  // 18. Master Animation Loop
   function simLoop() {
     requestAnimationFrame(simLoop);
     simTime += 0.016;

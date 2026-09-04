@@ -12,7 +12,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   
   <!-- CSS Dependencies -->
-  <link rel="stylesheet" href="main.css">
+  <link rel="stylesheet" href="main.css?v=20260902_v11">
+  <link rel="stylesheet" href="css/main.css?v=20260902_v11">
 
   <!-- Leaflet CSS for Maps -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
@@ -97,6 +98,9 @@
             <div class="hud-pill" style="color: var(--accent-green);">
               <i data-lucide="aperture" style="width: 14px;"></i> SCAN ARC: 180° Optical Fan
             </div>
+            <div class="hud-pill" id="hud-scan-depth-pill" style="color: #0284c7; background: #ecfeff; border: 1px solid rgba(2, 132, 199, 0.4);">
+              <i data-lucide="gauge" style="width: 14px;"></i> SCAN DEPTH: <span id="hud-scan-depth" style="font-weight: 800;">0.5m (Surface)</span>
+            </div>
             <div class="hud-pill" style="color: var(--accent-danger);">
               <i data-lucide="layers" style="width: 14px;"></i> DETECTED: <span id="hud-detected-count">842</span>
             </div>
@@ -108,14 +112,32 @@
           </div>
         </div>
 
-        <!-- Navigation Movement Mode Controls -->
-        <div class="vessel-mode-controls">
-          <button class="vessel-mode-btn active" data-mode="straight" onclick="window.setRoverNavSimulationMode('straight')">
-            <i data-lucide="move-right" style="width: 14px;"></i> Straight Canal Cruise
-          </button>
-          <button class="vessel-mode-btn" data-mode="uturn" onclick="window.setRoverNavSimulationMode('uturn')">
-            <i data-lucide="rotate-ccw" style="width: 14px;"></i> Execute 180° U-Turn
-          </button>
+        <!-- Navigation & Scanning Depth Mode Controls -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem; margin-top: 1.2rem;">
+          
+          <!-- Subsurface Depth Scanning Option (3m to 5m) -->
+          <div style="background: rgba(255, 255, 255, 0.98); border: 1px solid var(--border-glass-strong); padding: 0.45rem 0.65rem; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 0.55rem; box-shadow: var(--shadow-sm); flex-wrap: wrap; justify-content: center;">
+            <span style="font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase; padding-left: 0.5rem; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">
+              <i data-lucide="scan-line" style="width: 13px; color: #0284c7;"></i> Scan Depth:
+            </span>
+            <button id="btn-depth-surface" class="vessel-depth-btn active" data-depth="surface" onclick="window.setRoverScanDepthMode('surface')">
+              <i data-lucide="waves" style="width: 14px;"></i> Surface Water Scan (0 - 0.5m)
+            </button>
+            <button id="btn-depth-deep" class="vessel-depth-btn" data-depth="deep" onclick="window.setRoverScanDepthMode('deep')">
+              <i data-lucide="arrow-down" style="width: 14px;"></i> Subsurface Deep Scan (3m - 5m Water Column)
+              <span style="font-size: 0.68rem; font-weight: 800; background: #fee2e2; color: #b91c1c; padding: 0.15rem 0.55rem; border-radius: 9999px;">3m - 5m Multi-Beam</span>
+            </button>
+          </div>
+
+          <!-- Navigation Movement Mode Controls -->
+          <div class="vessel-mode-controls" style="margin-top: 0;">
+            <button class="vessel-mode-btn active" data-mode="straight" onclick="window.setRoverNavSimulationMode('straight')">
+              <i data-lucide="move-right" style="width: 14px;"></i> Straight Canal Cruise
+            </button>
+            <button class="vessel-mode-btn" data-mode="uturn" onclick="window.setRoverNavSimulationMode('uturn')">
+              <i data-lucide="rotate-ccw" style="width: 14px;"></i> Execute 180° U-Turn
+            </button>
+          </div>
         </div>
 
         <!-- REAL-TIME PARTICLE SPECTROMETRY BREAKDOWN GRID WITH LIVE ELEMENT COUNTERS -->
@@ -622,6 +644,7 @@
             <option value="delhi">📍 Delhi NCR (Yamuna River, Okhla)</option>
             <option value="nashik">📍 Nashik (Godavari River Basin)</option>
             <option value="haridwar">📍 Haridwar (Ganga River & Upper Canal)</option>
+            <option value="gujarat">📍 Gujarat (Narmada Main Canal & Ankleshwar)</option>
             <option value="hyderabad">📍 Hyderabad (Hussain Sagar Lake)</option>
           </select>
         </div>
@@ -663,7 +686,9 @@
             <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Microplastic Density: <strong id="node-plastic-display" style="color: var(--accent-danger);">780 fragments/L (LDPE Mulch)</strong></p>
             <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Burn Marker Index: <strong id="node-burn-display" style="color: var(--accent-amber);">Moderate (PAH 0.42)</strong></p>
             <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Classification: <strong id="node-type-display" style="color: var(--accent-green);">River Catchment (Pune / Maharashtra)</strong></p>
-            <p style="font-size: 0.85rem; color: var(--text-secondary);">Upstream Source: <strong id="node-source-display" style="color: var(--accent-cyan);">Old Pune Agricultural Fringe</strong></p>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Upstream Inflow: <strong id="node-source-display" style="color: var(--accent-cyan);">Old Pune Agricultural Fringe</strong></p>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Connected Canal: <strong id="node-canal-display" style="color: #0284c7;">Mutha Right Bank Canal (MRBC)</strong></p>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);">Major Corporate/Industrial Polluter: <strong id="node-polluter-display" style="color: #dc2626;">Bhosari & Pimpri MIDC (Heavy Metals & Plating Effluent)</strong></p>
           </div>
         </div>
 
@@ -674,6 +699,70 @@
               <input type="checkbox" id="toggle-hotspots" checked>
               <span class="slider"></span>
             </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REAL CANALS & INDUSTRIAL EFFLUENT POLLUTION PROFILER PANEL -->
+    <div id="canal-industrial-tracker" class="glass-card" style="margin-top: 1.5rem; padding: 1.5rem; border-color: rgba(2, 132, 199, 0.35); background: #ffffff;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem; margin-bottom: 1.2rem; padding-bottom: 0.9rem; border-bottom: 1px solid var(--border-glass-strong);">
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem;">
+            <span style="font-size: 0.72rem; font-weight: 800; background: #fee2e2; color: #dc2626; padding: 0.2rem 0.65rem; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em;">
+              🚨 CPCB & State SPCB Audited Records
+            </span>
+            <span style="font-size: 0.72rem; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 0.2rem 0.65rem; border-radius: 9999px;">
+              National Hydrology Protocol (NHP)
+            </span>
+          </div>
+          <h3 style="font-size: 1.35rem; font-family: var(--font-heading); color: #0f172a;">
+            Local Canals & Industrial Residue Profiler: <span id="canal-profiler-area-title" style="color: #0284c7;">Pune & PCMC Catchment</span>
+          </h3>
+          <p style="font-size: 0.85rem; color: #64748b; margin-top: 0.2rem;">
+            Comprehensive audit of all irrigation & feeder canals present in this locality, along with major industrial companies and manufacturing clusters discharging harmful residues.
+          </p>
+        </div>
+        <div style="text-align: right;">
+          <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">Environmental Benchmark:</span><br>
+          <strong style="font-size: 0.82rem; color: #0f172a;">CPCB CEPI & NGT Principal Bench Compliance</strong>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Left Column: Canals Present in this Area -->
+        <div style="background: #f8fafc; border: 1px solid var(--border-glass-strong); border-radius: var(--radius-sm); padding: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+            <h4 style="font-size: 1.05rem; font-family: var(--font-heading); color: #0f172a; display: flex; align-items: center; gap: 0.5rem;">
+              <span>🛶</span> Water Canals Present in this Area
+            </h4>
+            <span id="canal-count-badge" style="font-size: 0.72rem; font-weight: 800; background: #e0f2fe; color: #0369a1; padding: 0.15rem 0.55rem; border-radius: 9999px;">
+              4 Canals
+            </span>
+          </div>
+          <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 1rem;">
+            Primary irrigation, inter-basin feeders, and municipal drinking channels carrying water across this district:
+          </p>
+          <div id="canals-present-container" style="display: flex; flex-direction: column; gap: 0.85rem;">
+            <!-- Populated dynamically by map.js -->
+          </div>
+        </div>
+
+        <!-- Right Column: Major Companies & Industrial Residues Harming Water -->
+        <div style="background: #f8fafc; border: 1px solid var(--border-glass-strong); border-radius: var(--radius-sm); padding: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+            <h4 style="font-size: 1.05rem; font-family: var(--font-heading); color: #0f172a; display: flex; align-items: center; gap: 0.5rem;">
+              <span>🏭</span> Major Companies & Polluting Discharge Sources
+            </h4>
+            <span id="industry-count-badge" style="font-size: 0.72rem; font-weight: 800; background: #fee2e2; color: #b91c1c; padding: 0.15rem 0.55rem; border-radius: 9999px;">
+              High Impact Sources
+            </span>
+          </div>
+          <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 1rem;">
+            Companies, industrial estates, and agro-processing clusters documented by pollution boards discharging harmful residues:
+          </p>
+          <div id="industries-harming-container" style="display: flex; flex-direction: column; gap: 0.85rem;">
+            <!-- Populated dynamically by map.js -->
           </div>
         </div>
       </div>
@@ -756,11 +845,11 @@
     <p style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.85rem;">Designed for Presentation & Live Demonstration to SIH Evaluator Jury</p>
   </footer>
 
-  <!-- JavaScript Scripts -->
-  <script src="rover_sim.js"></script>
-<script src="simulator.js"></script>
-<script src="map.js"></script>
-<script src="app.js"></script>
+  <!-- JavaScript Scripts (Resilient paths for both root and js/ folder) -->
+  <script src="rover_sim.js?v=20260902_v11" onerror="this.onerror=null;this.src='js/rover_sim.js?v=20260902_v11'"></script>
+  <script src="simulator.js?v=20260902_v11" onerror="this.onerror=null;this.src='js/simulator.js?v=20260902_v11'"></script>
+  <script src="map.js?v=20260902_v11" onerror="this.onerror=null;this.src='js/map.js?v=20260902_v11'"></script>
+  <script src="app.js?v=20260902_v11" onerror="this.onerror=null;this.src='js/app.js?v=20260902_v11'"></script>
 
   <script>
     // Initialize Lucide Icons
